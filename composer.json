@@ -1,0 +1,32 @@
+{
+  "name": "yzh52521/jwt",
+  "description": "JWT integration for Yii 2",
+  "type": "yii2-extension",
+  "keywords": ["yii2", "jwt", "jws", "token", "authentication"],
+  "license": "Apache-2.0",
+  "support": {
+    "source": "https://github.com/yzh52251/yii2-jwt"
+  },
+  "authors": [
+    {
+      "name": "yzh52521",
+      "email": "396751927@qq.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "lcobucci/jwt": "^4.1",
+    "yiisoft/yii2": ">=2.0.14 <2.1"
+  },
+  "require-dev": {
+    "infection/infection": "*",
+    "phpstan/phpstan": "*",
+    "phpunit/phpunit": "^9.3",
+    "roave/security-advisories": "dev-latest"
+  },
+  "autoload": {
+    "psr-4": {
+      "yzh52521\\jwt\\": "src/"
+    }
+  }
+}
