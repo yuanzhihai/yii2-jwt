@@ -412,33 +412,12 @@ class Jwt extends Component
      */
     private function prepareValidationConstraints(): array
     {
-        $configuredConstraints = $this->getConfiguration()->validationConstraints();
-        if (count($configuredConstraints)) {
-            return $configuredConstraints;
-        }
+        $this->configuration->setValidationConstraints(
+            new SignedWith($this->getConfiguration()->signer(), $this->getConfiguration()->signingKey()),
+            new ValidAt(new SystemClock(new DateTimeZone(\date_default_timezone_get()))),
+        );
 
-        if (is_array($this->validationConstraints)) {
-            $constraints = [];
-
-            foreach ($this->validationConstraints as $constraint) {
-                if ($constraint instanceof Validation\Constraint) {
-                    $constraints[] = $constraint;
-                } else {
-                    /** @var Validation\Constraint $constraintInstance */
-                    $constraintInstance = $this->buildObjectFromArray($constraint);
-                    $constraints[]      = $constraintInstance;
-                }
-            }
-
-            return $constraints;
-        }
-
-        if (is_callable($this->validationConstraints)) {
-            /** @phpstan-ignore-next-line */
-            return call_user_func($this->validationConstraints, $this);
-        }
-
-        return [];
+        return  $this->configuration->validationConstraints();
     }
 
     /**

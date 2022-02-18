@@ -160,33 +160,6 @@ For assertion use:
 Yii::$app->jwt->assert($token);
 ```
 
-You **must** provide at least one constraint, otherwise `Lcobucci\JWT\Validation\NoConstraintsGiven` exception will be
-thrown. There are several ways to provide constraints:
-
-- directly:
-  ```php
-  Yii::$app->jwt->getConfiguration()->setValidationConstraints(/* constaints here */);
-  ```
-
-- through component configuration:
-  ```php
-  [
-      'validationConstraints' => /*
-          array of instances of Lcobucci\JWT\Validation\Constraint
-          
-          or
-          array of configuration arrays that can be resolved as Constraint instances
-          
-          or
-          anonymous function that can be resolved as array of Constraint instances with signature
-          `function(\yzh52521\jwt\Jwt $jwt)` where $jwt will be an instance of this component
-      */,
-  ]
-  ```
-
-**Note: By default, this package is not adding any constraints out-of-the-box, you must configure them yourself like
-in the examples above.**
-
 ## Using component for REST authentication
 
 Configure the `authenticator` behavior in the controller.
