@@ -2,6 +2,8 @@
 
 namespace yzh52521\jwt;
 
+use DateTimeZone;
+use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Builder;
 use Lcobucci\JWT\ClaimsFormatter;
 use Lcobucci\JWT\Configuration;
@@ -12,6 +14,7 @@ use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Signer;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation;
+use Lcobucci\JWT\Validation\Constraint\ValidAt;
 use Yii;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
