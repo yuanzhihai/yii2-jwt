@@ -2,8 +2,6 @@
 
 namespace yzh52521\jwt;
 
-use DateTimeZone;
-use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Builder;
 use Lcobucci\JWT\ClaimsFormatter;
 use Lcobucci\JWT\Configuration;
@@ -14,8 +12,6 @@ use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Signer;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation;
-use Lcobucci\JWT\Validation\Constraint\SignedWith;
-use Lcobucci\JWT\Validation\Constraint\ValidAt;
 use Yii;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
@@ -416,12 +412,32 @@ class Jwt extends Component
      */
     private function prepareValidationConstraints(): array
     {
-        $this->configuration->setValidationConstraints(
-            new SignedWith($this->getConfiguration()->signer(), $this->getConfiguration()->signingKey()),
-            new ValidAt(new SystemClock(new DateTimeZone(\date_default_timezone_get()))),
-        );
+        $configuredConstraints = $this->getConfiguration()->validationConstraints();
+        if (count($configuredConstraints)) {
+            return $configuredConstraints;
+        }
 
-        return  $this->configuration->validationConstraints();
+        if (is_array($this->validationConstraints)) {
+            $constraints = [];
+
+            foreach ($this->validationConstraints as $constraint) {
+                if ($constraint instanceof Validation\Constraint) {
+                    $constraints[] = $constraint;
+                } else {
+                    /** @var Validation\Constraint $constraintInstance */
+                    $constraintInstance = $this->buildObjectFromArray($constraint);
+                    $constraints[]      = $constraintInstance;
+                }
+            }
+
+            return $constraints;
+        }
+
+        if (is_callable($this->validationConstraints)) {
+            /** @phpstan-ignore-next-line */
+            return call_user_func($this->validationConstraints, $this);
+        }
+        return [];
     }
 
     /**
