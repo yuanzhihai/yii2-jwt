@@ -168,6 +168,13 @@ thrown. There are several ways to provide constraints:
   ```php
   Yii::$app->jwt->getConfiguration()->setValidationConstraints(/* constaints here */);
   ```
+  
+- example
+```php
+  Yii::$app->jwt->getConfiguration()->setValidationConstraints(
+        new LooseValidAt(SystemClock::fromSystemTimezone()),
+  );
+```
 
 - through component configuration:
   ```php
