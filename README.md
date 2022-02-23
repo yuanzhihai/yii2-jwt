@@ -18,11 +18,11 @@ Add the package to your `composer.json`:
 
     {
         "require": {
-            "yzh52521/jwt": "^1.0"
+            "yzh52521/yii2-jwt": "^1.0"
         }
     }
 
-and run `composer update` or alternatively run `composer require yzh52521/jwt:^1.0`
+and run `composer update` or alternatively run `composer require yzh52521/yii2-jwt:^1.0`
 
 ## Basic usage
 
