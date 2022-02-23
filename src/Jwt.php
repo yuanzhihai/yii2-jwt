@@ -12,6 +12,7 @@ use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Signer;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation;
+use Lcobucci\JWT\Validation\Constraint\SignedWith;
 use Yii;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
@@ -406,12 +407,25 @@ class Jwt extends Component
         return $signerInstance;
     }
 
+
+    /**
+     * Default check constaints
+     * @throws InvalidConfigException
+     */
+    private function defaultValidationConstraints()
+    {
+        $this->getConfiguration()->setValidationConstraints(
+            new SignedWith($this->getConfiguration()->signer(), $this->getConfiguration()->signingKey()),
+        );
+    }
+
     /**
      * @return Validation\Constraint[]
      * @throws InvalidConfigException
      */
     private function prepareValidationConstraints(): array
     {
+        $this->defaultValidationConstraints();
         $configuredConstraints = $this->getConfiguration()->validationConstraints();
         if (count($configuredConstraints)) {
             return $configuredConstraints;
