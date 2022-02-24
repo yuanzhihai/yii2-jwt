@@ -10,6 +10,7 @@ use Lcobucci\JWT\Encoder;
 use Lcobucci\JWT\Encoding\CannotDecodeContent;
 use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Rsa;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation;
 use Lcobucci\JWT\Validation\Constraint\SignedWith;
@@ -407,6 +408,16 @@ class Jwt extends Component
         return $signerInstance;
     }
 
+    /**
+     * Use RSA encryption
+     * @return bool
+     * @throws InvalidConfigException
+     */
+    private function RSASigner()
+    {
+        return $this->getConfiguration()->signer() instanceof Rsa;
+    }
+
 
     /**
      * Default check constaints
@@ -415,7 +426,7 @@ class Jwt extends Component
     private function defaultValidationConstraints()
     {
         $this->getConfiguration()->setValidationConstraints(
-            new SignedWith($this->getConfiguration()->signer(), $this->getConfiguration()->signingKey()),
+            new SignedWith($this->getConfiguration()->signer(),$this->RSASigner() ? $this->getConfiguration()->verificationKey() :$this->getConfiguration()->signingKey()),
         );
     }
 
