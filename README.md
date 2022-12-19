@@ -1,112 +1,236 @@
-# yii2-jwt
-JWT Integration for Yii 2
-![Latest Stable Version](https://img.shields.io/packagist/v/yzh52521/jwt.svg)
-[![Total Downloads](https://img.shields.io/packagist/dt/yzh52521/jwt.svg)](https://packagist.org/packages/yzh52521/jwt)
-![License](https://img.shields.io/packagist/l/yzh52521/jwt.svg)
-[![Infection MSI](https://badge.stryker-mutator.io/github.com/yzh52521/yii2-jwt/master)](https://infection.github.io)
+# Yii2 JWT
 
-# JWT Integration For Yii 2
+![](https://travis-ci.org/yzh52521/yii2-jwt.svg)
 
-This extension provides the [JWT](https://github.com/lcobucci/jwt) integration for
-[Yii 2 framework](https://www.yiiframework.com).
+This extension provides the [JWT](https://github.com/lcobucci/jwt) integration for the [Yii framework 2.0](http://www.yiiframework.com) (requires PHP 5.6+).
+It includes basic HTTP authentication support.
 
-> This is a fork of [yzh52521/yii2-jwt](https://github.com/yzh52521/yii2-jwt) package
+## Table of contents
 
+1. [Installation](#installation)
+2. [Dependencies](#dependencies)
+3. [Basic usage](#basicusage)
+  1. [Creating](#basicusage-creating)
+  2. [Parsing from strings](#basicusage-parsing)
+  3. [Validating](#basicusage-validating)
+4. [Token signature](#tokensign)
+  1. [Hmac](#tokensign-hmac)
+  2. [RSA and ECDSA](#tokensign-rsa-ecdsa)
+5. [Yii2 basic template example](#yii2basic-example)
+
+<a name="#installation"></a>
 ## Installation
 
-Add the package to your `composer.json`:
+Package is available on [Packagist](https://packagist.org/packages/yzh52521/yii2-jwt),
+you can install it using [Composer](http://getcomposer.org).
 
-    {
-        "require": {
-            "yzh52521/yii2-jwt": "^1.0"
-        }
-    }
-
-and run `composer update` or alternatively run `composer require yzh52521/yii2-jwt:^1.0`
-
-## Basic usage
-
-Add `jwt` component to your configuration file:
-
-    [
-        'components' => [
-            'jwt' => [
-                'class' => \yzh52521\jwt\Jwt::class,
-                'signer' => ... // Signer ID
-                'signingKey' => ... // Secret key string or path to the signing key file
-            ],
-        ],
-    ],
-
-
-### Available signers
-
-Symmetric:
-- HMAC (HS256, HS384, HS512)
-
-Asymmetric:
-- RSA (RS256, RS384, RS512)
-- ECDSA (ES256, ES384, ES512)
-- EdDSA (since 3.1.0)
-
-Signer IDs are available as constants (like Jwt::HS256).
-
-You can also provide your own signer, either as an instance of Lcobucci\JWT\Signer or by adding its config to `signers`
-and `algorithmTypes` and using its ID for `signer`.
-
-### Keys
-
-For symmetric signers `signingKey` is required. For asymmetric ones you also need to set `verifyingKey`. Keys can be
-provided as simple strings, configuration arrays, or instances of Lcobucci\JWT\Signer\Key.
-
-Configuration array can be as the following:
-
-```php
-[
-    'key' => /* key content */,
-    'passphrase' => /* key passphrase */,
-    'store' => /* storage type */,
-    'method' => /* method type */,
-]
+```shell
+composer require yzh52521/yii2-jwt
 ```
 
-- key (Jwt::KEY) - _string_, default `''`,
-- passphrase (Jwt::PASSPHRASE) - _string_, default `''`,
-- store (Jwt::STORE) - _string_, default `Jwt::STORE_IN_MEMORY`,
-  available: `Jwt::STORE_IN_MEMORY`, `Jwt::STORE_LOCAL_FILE_REFERENCE` (deprecated since 3.2.0, will be removed in 4.0.0)
-  (see https://lcobucci-jwt.readthedocs.io/en/latest/configuration/)
-- method (Jwt::METHOD) - _string_, default `Jwt::METHOD_PLAIN`,
-  available: `Jwt::METHOD_PLAIN`, `Jwt::METHOD_BASE64`, `Jwt::METHOD_FILE`
-  (see https://lcobucci-jwt.readthedocs.io/en/latest/configuration/)
+<a name="dependencies"></a>
+## Dependencies
 
-Simple string keys are shortcuts to the following array configs:
-- key starts with `@` or `file://`:
-  ```php
-  [
-      'key' => /* given key itself */,
-      'passphrase' => '',
-      'store' => Jwt::STORE_IN_MEMORY,
-      'method' => Jwt::METHOD_FILE,
-  ]
-  ```
-  Detecting `@` at the beginning assumes Yii alias has been provided so it will be resolved with `Yii::getAlias()`.
+- PHP 5.6+
+- OpenSSL Extension
+- [lcobucci/jwt 3.3](https://github.com/lcobucci/jwt/tree/3.3)
 
-- key doesn't start with `@` nor `file://`:
-  ```php
-  [
-      'key' => /* given key itself */,
-      'passphrase' => '',
-      'store' => Jwt::STORE_IN_MEMORY,
-      'method' => Jwt::METHOD_PLAIN,
-  ]
-  ```
+<a href="#basicusage"></a>
+## Basic usage
 
-### Issuing a token example:
+Add `jwt` component to your configuration file,
 
 ```php
-$now = new \DateTimeImmutable();
+'components' => [
+    'jwt' => [
+        'class' => \yzh52521\jwt\Jwt::class,
+        'constraints' => [
+            function () {
+                return new \Lcobucci\JWT\Validation\Constraint\LooseValidAt(
+                    \Lcobucci\Clock\SystemClock::fromSystemTimezone()
+                );
+            },
+        ],
+    ],
+],
+```
 
-/** @var \Lcobucci\JWT\Token\Plain $token */
+Configure the `authenticator` behavior as follows.
+
+```php
+namespace app\controllers;
+
+class ExampleController extends \yii\rest\Controller
+{
+
+    /**
+     * @inheritdoc
+     */
+    public function behaviors()
+    {
+        $behaviors = parent::behaviors();
+        $behaviors['authenticator'] = [
+            'class' => \yzh52521\jwt\JwtHttpBearerAuth::class,
+        ];
+
+        return $behaviors;
+    }
+}
+```
+
+Also, you can use it with `CompositeAuth` refer to a [doc](http://www.yiiframework.com/doc-2.0/guide-rest-authentication.html).
+
+<a name="basicusage-creating"></a>
+### Creating
+
+Just use the builder to create a new JWT/JWS tokens:
+
+```php
+$now = new DateTimeImmutable();
+$algorithm = $this->jwt->getSigner();
+$key = $this->jwt->getSignerKey();
+
+$token = Yii::$app->jwt->getBuilder()
+   // Configures the issuer (iss claim)
+   ->issuedBy('http://example.com')
+   // Configures the audience (aud claim)
+   ->permittedFor('http://example.org')
+   // Configures the id (jti claim)
+   ->identifiedBy('4f1g23a12aa')
+   // Configures the time that the token was issue (iat claim)
+   ->issuedAt($now)
+   // Configures the time that the token can be used (nbf claim)
+   ->canOnlyBeUsedAfter($now->modify('+1 minute'))
+   // Configures the expiration time of the token (exp claim)
+   ->expiresAt($now->modify('+1 hour'))
+   // Configures a new claim, called "uid"
+   ->withClaim('uid', 1)
+   // Configures a new header, called "foo"
+   ->withHeader('foo', 'bar');
+   // Builds a new token
+   ->getToken($algorithm, $key);
+   
+$token->headers(); // Retrieves the token headers
+$token->claims(); // Retrieves the token claims
+   
+echo $token->headers()->get('foo'); // will print "bar"
+echo $token->claims()->get('jti'); // will print "4f1g23a12aa"
+echo $token->claims()->get('iss'); // will print "http://example.com"
+echo $token->claims()->get('uid'); // will print "1"
+echo $token->toString(); // The string representation of the object is a JWT string (pretty easy, right?)
+```
+
+<a name="basicusage-parsing"></a>
+### Parsing from strings
+
+Use the parser to create a new token from a JWT string (using the previous token as example):
+
+```php
+use Lcobucci\JWT\Encoding\CannotDecodeContent;
+use Lcobucci\JWT\Token\InvalidTokenStructure;
+use Lcobucci\JWT\Token\UnsupportedHeaderFound;
+use Lcobucci\JWT\UnencryptedToken;
+
+try {
+    /** @var string $jwt JWT token string */
+    $token = Yii::$app->jwt->parse($jwt); // Parses from a string
+} catch (CannotDecodeContent | InvalidTokenStructure | UnsupportedHeaderFound $e) {
+    echo 'Oh no, an error: ' . $e->getMessage();
+}
+
+assert($token instanceof UnencryptedToken);
+```
+
+<a name="basicusage-validating"></a>
+### Validating
+
+We can easily validate if the token is valid (using the previous token as example):
+
+```php
+use \Lcobucci\JWT\Validation\Constraint\IssuedBy;
+
+if (!Yii::$app->jwt->validate($token, new IssuedBy('http://example.com'))) {
+    echo 'Invalid token (1)!', PHP_EOL; // will not print this
+}
+
+if (!Yii::$app->jwt->validate($token, new IssuedBy('http://example.org'))) {
+    echo 'Invalid token (1)!', PHP_EOL; // will print this
+}
+```
+
+#### Available constraints
+
+* `\Lcobucci\JWT\Validation\Constraint\IdentifiedBy`: verifies if the claim jti matches the expected value
+* `\Lcobucci\JWT\Validation\Constraint\IssuedBy`: verifies if the claim iss is listed as expected values
+* `\Lcobucci\JWT\Validation\Constraint\PermittedFor`: verifies if the claim aud contains the expected value
+* `\Lcobucci\JWT\Validation\Constraint\RelatedTo`: verifies if the claim sub matches the expected value
+* `\Lcobucci\JWT\Validation\Constraint\SignedWith`: verifies if the token was signed with the expected signer and key
+* `\Lcobucci\JWT\Validation\Constraint\StrictValidAt`: verifies presence and validity of the claims iat, nbf, and exp (supports leeway configuration)
+* `\Lcobucci\JWT\Validation\Constraint\LooseValidAt`: verifies the claims iat, nbf, and exp, when present (supports leeway configuration)
+* `\Lcobucci\JWT\Validation\Constraint\HasClaimWithValue`: verifies that a custom claim has the expected value (not recommended when comparing cryptographic hashes)
+
+#### Important
+
+* You have to configure `\yzh52521\jwt\Jwt::$constraints` informing all claims you want to validate the token by `Yii::$app->jwt->loadToken()`, this method also called inside `\sizeg\jwt\JwtHttpBearerAuth`.
+
+<a name="tokensign"></a>
+## Token signature
+
+We can use signatures to be able to verify if the token was not modified after its generation.
+This extension implements Hmac, RSA and ECDSA signatures (using 256, 384 and 512).
+
+### Important
+
+Do not allow the string sent to the Parser to dictate which signature algorithm to use,
+or else your application will be vulnerable to a [critical JWT security vulnerability](https://auth0.com/blog/2015/03/31/critical-vulnerabilities-in-json-web-token-libraries).
+
+The examples below are safe because the choice in `Signer` is hard-coded and cannot be influenced by malicious users.
+
+<a name="tokensign-hmac"></a>
+### Hmac
+
+Hmac signatures are really simple to be used.
+
+You may configure component:
+
+```php
+'components' => [
+    'jwt' => [
+        'class' => \yzh52521\jwt\Jwt::class,
+        'signer' => \yzh52521\jwt\JwtSigner::HS256,
+        'signerKey' => \yzh52521\jwt\JwtKey::PLAIN_TEXT,
+        'signerKeyContents' => random_bytes(32),
+        'signerKeyPassphrase' => 'secret',
+        'constraints' => [
+            function () {
+                // Verifies the claims iat, nbf, and exp, when present (supports leeway configuration)
+                return new \Lcobucci\JWT\Validation\Constraint\LooseValidAt(
+                    \Lcobucci\Clock\SystemClock::fromSystemTimezone()
+                );
+            },
+            function () {
+                // Verifies if the token was signed with the expected signer and key
+                return new \Lcobucci\JWT\Validation\Constraint\SignedWith(
+                    Yii::$app->jwt->getSigner(),
+                    Yii::$app->jwt->getSignerKey()
+                );
+            },
+         ],
+    ],
+],
+```
+
+```php
+use \Lcobucci\JWT\Validation\Constraint\SignedWith;
+
+$now = new DateTimeImmutable();
+
+$algorithm = $this->jwt->getSigner(\yzh52521\jwt\JwtSigner::HS256);
+// ... and key
+$contents = random_bytes(32);
+$passphrase = 'secret';
+$key = $this->jwt->getSignerKey(\yzh52521\jwt\JwtKey::PLAIN_TEXT, $contents, $passphrase);
+
 $token = Yii::$app->jwt->getBuilder()
     // Configures the issuer (iss claim)
     ->issuedBy('http://example.com')
@@ -125,108 +249,211 @@ $token = Yii::$app->jwt->getBuilder()
     // Configures a new header, called "foo"
     ->withHeader('foo', 'bar')
     // Builds a new token
-    ->getToken(
-        Yii::$app->jwt->getConfiguration()->signer(),
-        Yii::$app->jwt->getConfiguration()->signingKey()
-    );
-$tokenString = $token->toString();
-```
+    ->getToken($algorithm, $key);
+    
+if (!Yii::$app->jwt->validate($token, new SignedWith(
+    Yii::$app->jwt->getSigner(\yzh52521\jwt\JwtSigner::HS256),
+    Yii::$app->jwt->getSignerKey(JwtKey::PLAIN_TEXT, $contents, $passphrase)
+))) {
+    echo 'Invalid token (1)!', PHP_EOL; // will not print this
+}
 
-See https://lcobucci-jwt.readthedocs.io/en/latest/issuing-tokens/ for more info.
-
-### Parsing a token
-
-```php
-/** @var string $jwt */
-/** @var \Lcobucci\JWT\Token $token */
-$token = Yii::$app->jwt->parse($jwt);
-```
-
-See https://lcobucci-jwt.readthedocs.io/en/latest/parsing-tokens/ for more info.
-
-### Validating a token
-
-You can validate a token or perform an assertion on it (see https://lcobucci-jwt.readthedocs.io/en/latest/validating-tokens/).
-
-For validation use:
-```php
-/** @var \Lcobucci\JWT\Token | string $token */                                      
-/** @var bool $result */
-$result = Yii::$app->jwt->validate($token);
-```
-
-For assertion use:
-```php
-/** @var \Lcobucci\JWT\Token | string $token */                                      
-Yii::$app->jwt->assert($token);
-```
-
-You **must** provide at least one constraint, otherwise `Lcobucci\JWT\Validation\NoConstraintsGiven` exception will be
-thrown. There are several ways to provide constraints:
-
-- directly:
-  ```php
-  Yii::$app->jwt->getConfiguration()->setValidationConstraints(/* constaints here */);
-  ```
-  
-- example
-```php
-  Yii::$app->jwt->getConfiguration()->setValidationConstraints(
-        new LooseValidAt(SystemClock::fromSystemTimezone()),
-  );
-```
-
-- through component configuration:
-  ```php
-  [
-      'validationConstraints' => /*
-          array of instances of Lcobucci\JWT\Validation\Constraint
-          
-          or
-          array of configuration arrays that can be resolved as Constraint instances
-          
-          or
-          anonymous function that can be resolved as array of Constraint instances with signature
-          `function(\bizley\jwt\Jwt $jwt)` where $jwt will be an instance of this component
-      */,
-  ]
-  ```
-
-**Note: By default, this package is not adding any constraints out-of-the-box, you must configure them yourself like
-in the examples above.**
-
-## Using component for REST authentication
-
-Configure the `authenticator` behavior in the controller.
-
-```php
-class ExampleController extends Controller
-{
-    public function behaviors()
-    {
-        $behaviors = parent::behaviors();
-        
-        $behaviors['authenticator'] = [
-            'class' => \yzh52521\jwt\JwtHttpBearerAuth::class,
-        ];
-
-        return $behaviors;
-    }
+if (!Yii::$app->jwt->validate($token, new SignedWith(
+    Yii::$app->jwt->getSigner(\yzh52521\jwt\JwtSigner::HS256),
+    Yii::$app->jwt->getSignerKey(JwtKey::PLAIN_TEXT, random_bytes(32), 'other-secret')
+))) {
+    echo 'Invalid token (1)!', PHP_EOL; // will print this
 }
 ```
 
-There are special options available:
-- jwt - _string_ ID of component (default with `'jwt'`), component configuration _array_, or an instance of `yzh52521\jwt\Jwt`,
-- auth - callable or `null` (default) - anonymous function with signature `function (\Lcobucci\JWT\Token $token)` that
-  should return identity of user authenticated with the JWT payload information. If $auth is not provided method
-  `yii\web\User::loginByAccessToken()` will be called instead.
+<a name="tokensign-rsa-ecdsa"></a>
+### RSA and ECDSA
 
-For other configuration options refer to the [Yii 2 Guide](https://www.yiiframework.com/doc/guide/2.0/en/rest-authentication).
+RSA and ECDSA signatures are based on public and private keys so you have to generate using the private key and verify using the public key:
 
-## JWT Usage
+```php
+use \Lcobucci\JWT\Validation\Constraint\SignedWith;
 
-Please refer to the [lcobucci/jwt Documentation](https://lcobucci-jwt.readthedocs.io/en/latest/).
+$now = new DateTimeImmutable();
 
-## JSON Web Tokens
+// you can use 'ES256' if you're using ECDSA keys
+$algorithm = Yii::$app->jwt->getSigner(\yzh52521\jwt\JwtSigner::RS256);
+$privateKey = Yii::$app->jwt->getSignerKey(\yzh52521\jwt\JwtKey::FILE, 'file://{path to your private key}');
 
-- https://jwt.io
+$token = Yii::$app->jwt->getBuilder()
+    // Configures the issuer (iss claim)
+    ->issuedBy('http://example.com')
+    // Configures the audience (aud claim)
+    ->permittedFor('http://example.org')
+    // Configures the id (jti claim)
+    ->identifiedBy('4f1g23a12aa')
+    // Configures the time that the token was issue (iat claim)
+    ->issuedAt($now)
+    // Configures the time that the token can be used (nbf claim)
+    ->canOnlyBeUsedAfter($now->modify('+1 minute'))
+    // Configures the expiration time of the token (exp claim)
+    ->expiresAt($now->modify('+1 hour'))
+    // Configures a new claim, called "uid"
+    ->withClaim('uid', 1)
+    // Configures a new header, called "foo"
+    ->withHeader('foo', 'bar')
+    // Builds a new token
+    ->getToken($algorithm, $privateKey);
+
+$publicKey = Yii::$app->jwt->getSignerKey(\yzh52521\jwt\JwtKey::FILE, 'file://{path to your public key}');
+
+var_dump(Yii::$app->jwt->validate($token, new SignedWith(
+    Yii::$app->jwt->getSigner(\yzh52521\jwt\JwtSigner::RS256),
+    Yii::$app->jwt->getSignerKey(JwtKey::FILE, $publicKey)
+))); // true when the public key was generated by the private one =)
+```
+
+**It's important to say that if you're using RSA keys you shouldn't invoke ECDSA signers (and vice-versa), otherwise ```sign()``` and ```verify()``` will raise an exception!**
+
+<a name="yii2basic-example"></a>
+## Yii2 basic template example
+
+### Basic scheme
+
+1. Client send credentials. For example, login + password
+2. Backend validate them
+3. If credentials is valid client receive token
+4. Client store token for the future requests
+
+### Step-by-step usage example
+
+1. Create Yii2 application
+
+   In this example we will use [basic template](https://github.com/yiisoft/yii2-app-basic), but you can use [advanced template](https://github.com/yiisoft/yii2-app-advanced) in the same way.
+
+    ```shell
+    composer create-project --prefer-dist --stability=dev yiisoft/yii2-app-basic yii2-jwt-test
+    ```
+
+2. Install component
+
+    ```shell
+    composer require yzh52521/yii2-jwt
+    ```
+
+3. Add to config/web.php into `components` section
+
+    ```php
+    $config = [
+        'components' => [
+            // other default components here..
+            'jwt' => [
+                'class' => \yzh52521\jwt\Jwt::class,
+                'constraints' => [
+                    function () {
+                        return new \Lcobucci\JWT\Validation\Constraint\LooseValidAt(
+                            \Lcobucci\Clock\SystemClock::fromSystemTimezone()
+                        );
+                    },
+                ],
+            ],
+        ],
+    ];
+    ```
+4. Change method `app\models\User::findIdentityByAccessToken()`
+
+    ```php
+        /**
+         * {@inheritdoc}
+         * @param \Lcobucci\JWT\Token $token
+         */
+        public static function findIdentityByAccessToken($token, $type = null)
+        {
+            foreach (self::$users as $user) {
+                if ($user['id'] === (string) $token->claims()->get('uid')) {
+                    return new static($user);
+                }
+            }
+    
+            return null;
+        }
+    ```
+
+5. Create controller
+
+    ```php
+       <?php
+    
+       namespace app\controllers;
+    
+       use yzh52521\jwt\Jwt;
+       use yzh52521\jwt\JwtHttpBearerAuth;
+       use Yii;
+       use yii\rest\Controller;
+    
+       class RestController extends Controller
+       {
+           /**
+            * @inheritdoc
+            */
+           public function behaviors()
+           {
+               $behaviors = parent::behaviors();
+               $behaviors['authenticator'] = [
+                   'class' => JwtHttpBearerAuth::class,
+                   'optional' => [
+                       'login',
+                   ],
+               ];
+    
+               return $behaviors;
+           }
+    
+           /**
+            * @return \yii\web\Response
+            */
+           public function actionLogin()
+           {
+               $now = new DateTimeImmutable();
+               $algorithm = $this->jwt->getSigner();
+               $key = $this->jwt->getSignerKey();
+
+               /** @var Jwt $jwt */
+               $jwt = Yii::$app->jwt;
+            
+               $token = Yii::$app->jwt->getBuilder()
+                   // Configures the issuer (iss claim)
+                   ->issuedBy('http://example.com')
+                   // Configures the audience (aud claim)
+                   ->permittedFor('http://example.org')
+                   // Configures the id (jti claim)
+                   ->identifiedBy('4f1g23a12aa')
+                   // Configures the time that the token was issue (iat claim)
+                   ->issuedAt($now)
+                   // Configures the expiration time of the token (exp claim)
+                   ->expiresAt($now->modify('+1 hour'))
+                   // Configures a new claim, called "uid"
+                   ->withClaim('uid', 100)
+                   // Builds a new token
+                   ->getToken($algorithm, $key);
+
+            return $this->asJson([
+                'token' => $token->toString(),
+            ]);
+        }
+    
+        /**
+         * @return \yii\web\Response
+         */
+        public function actionData()
+        {
+            return $this->asJson([
+                'success' => true,
+            ]);
+        }
+    }
+    ```
+
+6. Send simple login request to get token. Here we does not send any credentials to simplify example. As we specify in `authenticator` behavior action `login` as optional the `authenticator` skip auth check for that action.
+   ![image](https://user-images.githubusercontent.com/4047591/54614758-c4d2e100-4a7e-11e9-9175-0f1742bf4047.png)
+
+7. First of all we try to send request to rest/data without token and getting error `Unauthorized`
+   ![image](https://user-images.githubusercontent.com/4047591/54615287-a3262980-4a7f-11e9-81a9-609f5cb443c7.png)
+
+8. Then we retry request but already adding `Authorization` header with our token
+   ![image](https://user-images.githubusercontent.com/4047591/54615245-8ee22c80-4a7f-11e9-9948-e3f801596c43.png)
